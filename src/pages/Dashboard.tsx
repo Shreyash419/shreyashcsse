@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { MotionConfig, motion } from 'framer-motion';
 import { Activity, CalendarDays, Users, Sparkles } from 'lucide-react';
 import {
@@ -14,6 +15,8 @@ import {
 } from 'recharts';
 import StatCard from '../components/ui/StatCard';
 import GlassCard from '../components/ui/GlassCard';
+import CreateEventModal from '../components/ui/CreateEventModal';
+import EventDetailsModal, { type EventDetails } from '../components/ui/EventDetailsModal';
 
 const activityData = [
   { day: 'Mon', events: 4, signups: 42 },
@@ -43,9 +46,105 @@ const listVariants = {
   })
 };
 
+const UPCOMING_EVENTS: EventDetails[] = [
+  {
+    title: 'RoboFest 2026 Qualifiers',
+    society: 'Robotics Society',
+    date: 'Tomorrow, Feb 15',
+    time: '5:30 PM',
+    venue: 'Main Auditorium',
+    capacity: 320,
+    filled: 261,
+    description:
+      'Autonomous robotics qualifiers for the annual inter-college RoboFest. Teams will compete in timed obstacle courses and challenge rounds. Registration closes 2 hours before start.'
+  },
+  {
+    title: 'Midnight Acoustic Sessions',
+    society: 'Music Club',
+    date: 'Friday, Feb 14',
+    time: '9:00 PM',
+    venue: 'Amphitheatre',
+    capacity: 220,
+    filled: 198,
+    description:
+      'An evening of live acoustic performances by campus artists. Bring your blankets and enjoy the open-air venue under the stars. Snacks and beverages available.'
+  },
+  {
+    title: 'AI for Campus Operations',
+    society: 'AI Society',
+    date: 'Sunday, Feb 16',
+    time: '11:00 AM',
+    venue: 'Innovation Lab',
+    capacity: 120,
+    filled: 94,
+    description:
+      'Hands-on workshop on using AI for campus management – scheduling, resource allocation, and predictive analytics. Basic programming knowledge recommended.'
+  }
+];
+
 export default function Dashboard() {
+  const [createEventOpen, setCreateEventOpen] = useState(false);
+  const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<EventDetails | null>(null);
+
+  const handleCreateEvent = (data: { eventName: string; society: string; date: string; time: string; venue: string; capacity: string; description: string }) => {
+    console.log('Event created:', data);
+    // TODO: call API when backend is ready
+  };
+
+  const handleViewEvent = (event: EventDetails) => {
+    setSelectedEvent(event);
+    setEventDetailsOpen(true);
+  };
+
+  const handleExportReport = () => {
+    const report = [
+      'COLLEGE SOCIETY MANAGEMENT — DASHBOARD REPORT',
+      `Generated: ${new Date().toLocaleString()}`,
+      '',
+      '═══ SUMMARY ═══',
+      'Active societies: 46',
+      'Events this month: 128',
+      'Unique attendees: 2,312',
+      'AI recommendations: 38',
+      '',
+      '═══ EVENT MOMENTUM (LAST 7 DAYS) ═══',
+      'Day,Events,Signups',
+      ...activityData.map((d) => `${d.day},${d.events},${d.signups}`),
+      '',
+      '═══ SOCIETY MIX ═══',
+      'Category,Count',
+      ...societyDistribution.map((d) => `${d.name},${d.value}`),
+      '',
+      '═══ UPCOMING EVENTS ═══',
+      'Title,Society,Date,Time,Venue,Capacity,Filled',
+      ...UPCOMING_EVENTS.map(
+        (e) =>
+          `"${e.title}","${e.society}",${e.date},${e.time},"${e.venue}",${e.capacity},${e.filled}`
+      )
+    ].join('\n');
+
+    const blob = new Blob([report], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `dashboard-report-${new Date().toISOString().slice(0, 10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <MotionConfig reducedMotion="user">
+      <CreateEventModal
+        isOpen={createEventOpen}
+        onClose={() => setCreateEventOpen(false)}
+        onSubmit={handleCreateEvent}
+      />
+      <EventDetailsModal
+        isOpen={eventDetailsOpen}
+        onClose={() => setEventDetailsOpen(false)}
+        event={selectedEvent}
+      />
       <div className="space-y-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -60,8 +159,18 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="flex gap-2">
-            <button className="btn-primary text-xs">Create event</button>
-            <button className="rounded-3xl border border-slate-200/80 bg-white/60 px-4 py-2 text-xs font-medium text-slate-700 shadow-soft transition hover:border-neon-cyan hover:text-neon-cyan dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200">
+            <button
+              type="button"
+              onClick={() => setCreateEventOpen(true)}
+              className="btn-primary text-xs"
+            >
+              Create event
+            </button>
+            <button
+              type="button"
+              onClick={handleExportReport}
+              className="rounded-3xl border border-slate-200/80 bg-white/60 px-4 py-2 text-xs font-medium text-slate-700 shadow-soft transition hover:border-neon-cyan hover:text-neon-cyan dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200"
+            >
               Export report
             </button>
           </div>
@@ -233,20 +342,7 @@ export default function Dashboard() {
               </p>
             </div>
             <ul className="space-y-2 text-xs text-slate-500 dark:text-slate-400">
-              {[
-                {
-                  title: 'RoboFest 2026 Qualifiers',
-                  meta: 'Robotics Society · Tomorrow · 5:30 PM'
-                },
-                {
-                  title: 'Midnight Acoustic Sessions',
-                  meta: 'Music Club · Friday · 9:00 PM'
-                },
-                {
-                  title: 'AI for Campus Operations',
-                  meta: 'AI Society · Sunday · 11:00 AM'
-                }
-              ].map((event) => (
+              {UPCOMING_EVENTS.map((event) => (
                 <li
                   key={event.title}
                   className="flex items-start justify-between gap-2 rounded-2xl bg-slate-900/5 px-3 py-2 dark:bg-white/5"
@@ -255,9 +351,17 @@ export default function Dashboard() {
                     <p className="text-xs font-semibold text-slate-900 dark:text-slate-50">
                       {event.title}
                     </p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">{event.meta}</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      {event.society} · {event.date} · {event.time}
+                    </p>
                   </div>
-                  <button className="btn-primary px-3 py-1 text-[10px]">View</button>
+                  <button
+                    type="button"
+                    onClick={() => handleViewEvent(event)}
+                    className="btn-primary px-3 py-1 text-[10px]"
+                  >
+                    View
+                  </button>
                 </li>
               ))}
             </ul>
